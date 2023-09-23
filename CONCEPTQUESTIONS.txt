@@ -1,0 +1,89 @@
+CIS560 HW03 CONCEPT QUESTIONS
+
+(2 pts) What are the three different configuration cases when determining the intersection of a pixel row with a triangle edge? In all three cases, what simple criterion can one use to determine whether the triangle edge overlaps the pixel row at all?
+
+***
+
+A: 
+
+CASE 1. Pixel row overlaps the edge endpoints: if the pixel row’s Y coordinate is between the Y coords of an edge’s endpoints, it will overlap the edge within the bounding box.
+
+If the pixel row’s Y coord is between the Y coords of an edge’s endpoints, it will overlap the edge within the bounding box.
+ 
+CASE 2. The edge is colinear to the pixel row being tested. 
+
+In other words, because the edge is horizontal, y_1 = y_row. We can ignore the edge entirely, since the other two edges will intersect the pixel row, too. This colinear edge can be ignored as the other two edges will provide the intersections with the row.
+
+CASE 3. The slope of the triangle edge is undefined (i.e. it’s perfectly vertical), we use the X coordinate of either endpoint as any pixel row that lies between the Y-coordinates of the edge's endpoints will overlap the edge, but determining the exact overlap requires examining the X-coordinates. If the pixel row’s Y-coordinate is outside the range of the edge's endpoints, then it doesn't intersect.
+
+
+***
+
+(3 pts) How might one use barycentric interpolation to determine whether or not a given point in space lies within the bounds of a triangle? In rasterization, would this method be more efficient than row bound checking for determining which pixels lie within a triangle? Why or why not?
+
+***
+
+A: One can use barycentric interpolation to determine a point in a triangle (i.e. interpolate values of three points).
+
+Let's say we have a triangle with points P_1, P_2, and P_3. The entire area of the triangle can be represented as: S = area(P1, P2, P3)
+
+Given that the length of a cross product is the area of the parallelogram bounded by the two crossed vectors, the area of a triangle can be represented as: Area = 0.5*length(cross(P1-P2, P3-P2))
+
+Let's say we have point P that lies inside this triangle. The entire triangle can be split into three smaller triangles whose areas can be represented in the following way:
+
+S1 = area(P, P2, P3)
+S2 = area(P, P3, P1)
+S3 = area(P, P1, P2)
+
+So S = S1 + S2 + S3
+
+Therefore: P = P1*S1/S + P2*S2/S + P3*S3/S.
+Where S1/S, S2/S and S3/S represent the barycentric weights.
+
+If S1/S, S2/S or S3/S are not within the range [0, 1] then point P lies outside of the entire triangle.
+
+In rasterization, when determining pixel coordinates using barycentric coordinates, the process requires computing the cross product to determine the area of the triangle , which can make it more computationally expensive and less efficient than checking intersections of edges with pixel rows within a boundig box. However, when it comes to determining attributes like colors, Barycentric coordinates is better at handling this sort of task. For example, the color of a point can be represented as:
+
+P.color = P1.color * S1/S + P2.color * S2/S + P3.color * S3/S
+
+***
+
+(5 pts) Describe in detail the sequence of transformations that must occur in order to project a set of triangles given in 3D world space into the coordinate system of the pixelized screen.
+
+***
+
+A: A 3D geometry is projected down to a 2D pixel space using the following transformations:
+
+1. Transformation from World Space, where P = (Wx, Wy, Wz, Ww) to Camera Space:
+
+View Matrix * P
+	
+View matrix is composed of two sub-matrices: Orientation matrix (O) * Translation matrix (T)
+	
+In the world space, objects are defined in relation to a global origin. The scene's geometry is transformed in the opposite direction and orientation of how the camera would move. Thus, the View Matrix sets up the camera's position and orientation.
+
+2. Transformation from Camera Space, where P = (Cx, Cy, Cz, Cw), to "Unhomogenized Screen Space":
+
+Projection Matrix * P
+
+The Projection matrix project objects from 3D space into the screen's 2D space (the screen space is Normalized Device Coordinates)). This transformation applies a projection to the scene that fits within a frustum.
+
+
+3. Transformation from Unhomogenized Screen Space, where P = (Ux, Uy, Uz, Uw = Cz) to Screen Space:
+
+p /= Uw
+
+We perform perspective division that homogenizes the coordinates prior to mapping onto screen space. p /= Uw divides each component of the point by the w value that brings depth to the coordinates (i.e. simulating perspective so that closer objects appear larger and farther objects appear smaller on the screen).
+
+In this resulting NDC space, x and y coordinates generally lie between -1 and 1.
+
+
+4. Transformation from Screen Space, where P = (Sx, Sy, Sz, Sw) to Pixel Space:
+
+Px = ((Sx + 1)/2) * Width
+Py = ((1 - Sy)/2 * Height
+
+We need to convert from NDC (normalized device coordinates) in the screen space to pixel coordinates.
+
+Finally, in Pixel Space, P = (Px, Py, Pz, Pw).
+***
