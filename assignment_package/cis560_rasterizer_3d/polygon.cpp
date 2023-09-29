@@ -18,7 +18,6 @@ void Polygon::Triangulate()
         m_tris.push_back(triangle);
     }
 
-
 }
 
 glm::vec3 GetImageColor(const glm::vec2 &uv_coord, const QImage* const image)

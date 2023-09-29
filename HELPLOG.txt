@@ -1,0 +1,12 @@
+** CIS560 HW03 HELP LOG **
+
+09/23/2023: Used Instructor Mally's slides on Rasterization I, Color to start the assignment.
+
+09/25/2023 3:30PM: Went to after class office hours in the SIG Lab and received help from Kevin. 
+More specifically, I had issues with pixel coordinates being out of range when loading 2D scenes.
+
+09/26/2023: Used Instructor Mally's class slides on Virtual Cameras and Spatial Transformations to help with creating the camera for the assignment. 
+
+09/27/2023 3:30PM: Went to after class office hours in the SIG Lab and received help from Insha. More specifically, I had issues with the Camera.
+
+09/28/2023: Used Instructor Mally's slides on Perspective-Correct Interpolation and Texturing, Shading, and Lighting to progress through the 3D Triangle Rasterization part of the assignment.

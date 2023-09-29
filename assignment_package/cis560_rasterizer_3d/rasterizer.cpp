@@ -22,22 +22,12 @@ QImage Rasterizer::RenderScene()
 
     result.fill(qRgb(0.f, 0.f, 0.f));
 
-    // ** LECTURE HINT
-    //1.
-    //for each Polygon P
-        //for each Triangle t
-            //compute bounding box of t
-            //for each Y coord in bounding box
-                //row-edge intersect
-
     //initializing Z buffer to store Z coordinates
     //dimensions W x H pixels
     std::array<float, 512 * 512> zBuffer;
     std::fill(zBuffer.begin(), zBuffer.end(), std::numeric_limits<float>::max());
 
-    //CAMERA
-//    std::cout << getCamera().forward.z << "hi" << std::endl;
-
+    //CAMERA: view and projection matrices
     glm::mat4 viewMatrix = getCamera().getViewMatrix();
     glm::mat4 projectionMatrix = getCamera().getProjectionMatrix();
 
@@ -64,6 +54,7 @@ QImage Rasterizer::RenderScene()
 
             //compute bounding box of T
             BoundingBox bb;
+
             //bottom left corner of the bounding box
             bb.minX = std::min({vertex1.m_pos.x, vertex2.m_pos.x, vertex3.m_pos.x});
             bb.minY = std::min({vertex1.m_pos.y, vertex2.m_pos.y, vertex3.m_pos.y});
@@ -74,8 +65,6 @@ QImage Rasterizer::RenderScene()
 
             //clamp bounding box to screen
             bb.ClampToScreen(512, 512);
-
-            //finding left and right x intersections with pixel row
 
             //array of Segments representing 3 edges of triangle
             std::array<Segment, 3> segments = {
@@ -90,13 +79,16 @@ QImage Rasterizer::RenderScene()
                 float xLeft = 512; //initialized to screenwidth
                 float xRight = 0; //initialized to minimum screen
 
+                //iterate over a collection of line segments
                 for (Segment &segment : segments){
 
-//                    if (xLeft < 0 || xRight > 511) {
-//                        std::cout << "Suspicious x range: " << xLeft << " to " << xRight << std::endl;
-//                    }
-
                     float xIntersection;
+
+                    // For a given triangle, we want to find the min and max X intercept with our pixel row
+                    //one of these intersections will be outside of the box
+
+                    //Need to make sure the pixel row only tests for intersection with edges it would overlap within the bounding box
+                    //If the pixel row’s Y coord is between the Y coords of an edge’s endpoints, it will overlap the edge within the bounding box
 
                     //if segment intersects with y value
                     if(segment.getIntersection(y, &xIntersection)){
@@ -106,29 +98,27 @@ QImage Rasterizer::RenderScene()
                         xRight = std::max(xRight, xIntersection);
                     }
                 }
-
                 //double check that values are not being drawn out of screen size of 512x512
                 //limit is (0, 512)
-
                 xLeft = std::max(0.0f, xLeft);
                 xRight = std::min(511.0f, xRight);
 
                 //drawing pixels for particular row
                 for (int x = static_cast<int>(xLeft); x <= static_cast<int>(xRight); x++){
-                    //void setPixel(int x, int y, uint index_or_rgb);
 
                     glm::vec4 point = glm::vec4(x, y, 0, 0);
 
-                    //** 2D barycentric interpolation **
-//                    glm::vec3 barycentricinterpolation = BarycentricInterpolation(vertex1.m_pos, vertex2.m_pos, vertex3.m_pos, point);
+                    //** 2D barycentric interpolation; UNCOMMENT for 2D RASTERIZATION **
+                    //glm::vec3 barycentricinterpolation = BarycentricInterpolation(vertex1.m_pos, vertex2.m_pos, vertex3.m_pos, point);
 
-                    //** 3D barycentric interpolation
+                    //** 3D barycentric interpolation for 3D RASTERIZATION **
+                    //interpolate each fragment's Z with correct perspective distortion, then interpolate each fragment's UVs with correct perspective distortion
                     glm::vec3 barycentricinterpolation = BarycentricInterpolation3D(vertex1.m_pos, vertex2.m_pos, vertex3.m_pos, point);
 
+                    //interpolate color (used for 2D RASTERIZATION)
                     glm::vec3 colorinterpolation = interpolateColor(vertex1.m_color, vertex2.m_color, vertex3.m_color, barycentricinterpolation);
 
-                    //check Z values
-                    //access the element corresponding to (x, y) as array[x + W * y] for 2D
+                    //check Z values; access the element corresponding to (x, y) as array[x + W * y] for 2D
                     int zBufferIndex = x + 512 * y;
 
                     //calculate depth
@@ -136,70 +126,39 @@ QImage Rasterizer::RenderScene()
                                               + barycentricinterpolation.y * vertex2.m_pos.z
                                               + barycentricinterpolation.z * vertex3.m_pos.z;
 
-                    //**UV interpolation
+                    //** UV interpolation **
                     glm::vec2 uv1 = vertex1.m_uv;
                     glm::vec2 uv2 = vertex2.m_uv;
                     glm::vec2 uv3 = vertex3.m_uv;
-
                     glm::vec2 interpolatedUV = interpolateUV(uv1, uv2, uv3, barycentricinterpolation);
-
                     glm::vec3 textureColor = GetImageColor(interpolatedUV, p.mp_texture);
 
-                    //
+                    //** LAMBERT **
+                    // Normal interpolation
+                    glm::vec4 normal = interpolateNormals(vertex1.m_normal, vertex2.m_normal, vertex3.m_normal, barycentricinterpolation);
+
+                    float lambertColor = lambert(m_camera, normal);
+
+                    glm::vec3 lambertTextureColor = lambertColor * textureColor;
 
                     //use the color of the fragment with the smallest Z-coordinate
-
                     if (interpolatedDepth < zBuffer[zBufferIndex]){
                         zBuffer[zBufferIndex] = interpolatedDepth;
-                        //2D
-//                        result.setPixel(x, y, qRgb(colorinterpolation.r, colorinterpolation.g, colorinterpolation.b));
-                        //3D
-                        result.setPixel(x, y, qRgb(textureColor.r, textureColor.g, textureColor.b));
 
+                        // ** UNCOMMENT FOR 2D RASTERIZATION **
+                        //result.setPixel(x, y, qRgb(colorinterpolation.r, colorinterpolation.g, colorinterpolation.b));
+
+                        //3D: [NO lambert shading]
+                        //result.setPixel(x, y, qRgb(textureColor.r, textureColor.g, textureColor.b));
+
+                        //3D: lambert shading
+                        //clamp values
+                        result.setPixel(x, y, qRgb(glm::clamp(lambertTextureColor.r, 0.0f, 255.0f), glm::clamp(lambertTextureColor.g, 0.0f, 255.0f), glm::clamp(lambertTextureColor.b, 0.0f, 255.0f)));
                     }
-
-
-
                 }
-
             }
+        }
     }
-    }
-
-
-    //iterate over a collection of line segments
-
-    //2. For a given triangle, we want to find the min and max X intercept with our pixel row
-    //one of these intersections will be outside of the box
-
-    //Need to make sure the pixel row only tests for intersection with edges it would overlap within the bounding box
-    //If the pixel row’s Y coord is between the Y coords of an edge’s endpoints, it will overlap the edge within the bounding box
-
-    //To find the overall min of a collection of N items, we
-    //std::min(A, B, C)
-    //or
-    //float leftX = 511, rightX = 0
-    // for each segment {
-        //leftX = min(leftX, intersection(segment))
-        //rightX = max(rightX, intersection(segment))
-    //
-
-    // ** LECTURE HINT
-
-
-    // TODO: Complete the various components of code that make up this function.
-    // It should return the rasterized image of the current scene.
-
-    // Make liberal use of helper functions; writing your rasterizer as one
-    // long RenderScene function will make it (a) hard to debug and
-    // (b) hard to write without copy-pasting. Also, Adam will be sad when
-    // he reads your code.
-
-    // Also! As per the style requirements for this assignment, make sure you
-    // use std::arrays to store things like your line segments, Triangles, and
-    // vertex coordinates. This lets you easily use loops to perform operations
-    // on your scene components, rather than copy-pasting operations three times
-    // each!
     return result;
 }
 
@@ -210,7 +169,7 @@ glm::vec3 Rasterizer::BarycentricInterpolation (glm::vec4& v1, glm::vec4& v2, gl
     //area of a triangle = length(cross(P1-P2, P3-P2))/2
 
     //dot product cannot be computed on vec4, must be vec3
-    //convert inptut to vec3
+    //convert input to vec3
     //z coordinates treated as 0
     glm::vec3 p1 = glm::vec3(v1.x, v1.y, 0.0f);
     glm::vec3 p2 = glm::vec3(v2.x, v2.y, 0.0f);
@@ -218,7 +177,7 @@ glm::vec3 Rasterizer::BarycentricInterpolation (glm::vec4& v1, glm::vec4& v2, gl
     glm::vec3 p = glm::vec3(point.x, point.y, 0.0f);
 
     //compute areas using a cross product
-//    float totalAreaCross = glm::length(glm::cross(p2 - p1, p3 - p1)) * 0.5f;
+    //float totalAreaCross = glm::length(glm::cross(p2 - p1, p3 - p1)) * 0.5f;
 
     float s1 = glm::length(glm::cross(p2 - p, p3 - p)) * 0.5f;
     float s2 = glm::length(glm::cross(p3 - p, p1 - p)) * 0.5f;
@@ -230,7 +189,7 @@ glm::vec3 Rasterizer::BarycentricInterpolation (glm::vec4& v1, glm::vec4& v2, gl
     float s2s = s2/s;
     float s3s = s3/s;
 
-    //return barycentric influence+
+    //return barycentric coordinates
     return glm::vec3(s1s, s2s, s3s);
 }
 
@@ -270,7 +229,7 @@ glm::vec3 Rasterizer::BarycentricInterpolation3D(glm::vec4& v1, glm::vec4& v2, g
     glm::vec3 p = glm::vec3(point.x, point.y, 0.0f);
 
     //compute areas using a cross product
-    //    float totalAreaCross = glm::length(glm::cross(p2 - p1, p3 - p1)) * 0.5f;
+    //float totalAreaCross = glm::length(glm::cross(p2 - p1, p3 - p1)) * 0.5f;
 
     float s1 = glm::length(glm::cross(p2 - p, p3 - p)) * 0.5f;
     float s2 = glm::length(glm::cross(p3 - p, p1 - p)) * 0.5f;
@@ -282,7 +241,7 @@ glm::vec3 Rasterizer::BarycentricInterpolation3D(glm::vec4& v1, glm::vec4& v2, g
     float s2s = s2/(s * v2.w);
     float s3s = s3/(s * v3.w);
 
-    //return barycentric influence
+    //return barycentric coordinates
     return glm::vec3(s1s, s2s, s3s);
 }
 
@@ -290,18 +249,23 @@ glm::vec2 Rasterizer::interpolateUV(glm::vec2& v1UV, glm::vec2& v2UV, glm::vec2&
     return barycentricInfluence.x * v1UV + barycentricInfluence.y * v2UV + barycentricInfluence.z * v3UV;
 }
 
-glm::vec3 Rasterizer::lambert(const Camera& camera, const glm::vec3& normal, const glm::vec3&light){
-    float ambientTerm = 0.3f;
-
-    //normalize camera's forward vector
-    glm::vec3 normalizedForward = glm::normalize(glm::vec3(camera.forward));
-
-    float lambertTerm = glm::clamp(glm::dot(normal, normalizedForward), 0.0f, 1.0f);
-
-    return ambientTerm + lambertTerm * light;
+glm::vec4 Rasterizer::interpolateNormals(glm::vec4& v1normal, glm::vec4& v2normal, glm::vec4& v3normal, glm::vec3& barycentricInfluence) {
+    return barycentricInfluence.x * v1normal + barycentricInfluence.y * v2normal + barycentricInfluence.z * v3normal;
 }
 
+float Rasterizer::lambert(const Camera& camera, const glm::vec4& normal) {
+    float ambientTerm = 0.3f;
 
+    //source of light will be the negative of the camera's vector
+    glm::vec4 lightVector = -(camera.forward);
+
+    //normalize camera's forward vector
+    glm::vec4 normalizedForward = glm::normalize(lightVector);
+
+    float lightOnSinglePoint = glm::clamp(glm::dot(normalizedForward, normal), 0.0f, 1.0f);
+
+    return ambientTerm + lightOnSinglePoint;
+}
 
 void Rasterizer::ClearScene() {
     m_polygons.clear();
