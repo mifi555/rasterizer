@@ -3,7 +3,22 @@
 
 void Polygon::Triangulate()
 {
-    //TODO: Populate list of triangles
+    //[DONE] TODO: Populate list of triangles
+
+    if (m_verts.size() < 3){
+        return;
+    }
+
+    for (unsigned int i = 1; i < m_verts.size() - 1; i++) {
+        Triangle triangle;
+        triangle.m_indices[0] = 0;
+        triangle.m_indices[1] = i;
+        triangle.m_indices[2] = i + 1;
+
+        m_tris.push_back(triangle);
+    }
+
+
 }
 
 glm::vec3 GetImageColor(const glm::vec2 &uv_coord, const QImage* const image)

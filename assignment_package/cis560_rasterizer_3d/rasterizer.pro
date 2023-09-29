@@ -18,8 +18,10 @@ SOURCES += main.cpp\
     tiny_obj_loader.cc
 
 HEADERS  += mainwindow.h \
+    camera.h \
     polygon.h \
     rasterizer.h \
+    segment.h \
     tiny_obj_loader.h
 
 FORMS    += mainwindow.ui

@@ -26,7 +26,25 @@ struct Triangle
     // The indices of the Vertices that make up this triangle.
     // The indices correspond to the std::vector of Vertices stored in the Polygon
     // which stores this Triangle
+
+    //indices represent triangle vertex
     unsigned int m_indices[3];
+};
+
+// BOUNDING BOXES
+struct BoundingBox
+{
+    //min X, min Y: bottom left corner of the bounding box
+    //max X, max Y: top right corner of the bounding box
+    float minX, minY, maxX, maxY;
+
+    void ClampToScreen(int screenWidth, int screenHeight) {
+        minX = std::max(0.f, minX);
+        minY = std::max(0.f, minY);
+        maxX = std::min(static_cast<float>(screenWidth - 1), maxX);
+        maxY = std::min(static_cast<float>(screenHeight - 1), maxY);
+    }
+
 };
 
 class Polygon
