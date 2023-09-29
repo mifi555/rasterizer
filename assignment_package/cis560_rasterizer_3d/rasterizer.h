@@ -28,7 +28,7 @@ public:
     glm::vec3 interpolateColor(glm::vec3& v1Color, glm::vec3& v2Color, glm::vec3& v3Color, glm::vec3& barycentricInfluence);
 
 
-    //3D
+    //** PART 3: 3D RASTERIZATION **
 
     glm::vec4 worldSpaceToScreenSpace(const glm::vec4& worldVertex, const glm::mat4& view, const glm::mat4& projection, int screenWidth, int screenHeight);
 
@@ -40,4 +40,6 @@ public:
     glm::vec3 BarycentricInterpolation3D (glm::vec4& v1, glm::vec4& v2, glm::vec4& v3, glm::vec4& point);
 
     glm::vec2 interpolateUV(glm::vec2& v1UV, glm::vec2& v2UV, glm::vec2& v3UV, glm::vec3& barycentricInfluence);
+
+    glm::vec3 lambert(const Camera& camera, const glm::vec3& normal, const glm::vec3&light);
 };

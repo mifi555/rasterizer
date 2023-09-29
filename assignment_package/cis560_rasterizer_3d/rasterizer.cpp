@@ -136,12 +136,25 @@ QImage Rasterizer::RenderScene()
                                               + barycentricinterpolation.y * vertex2.m_pos.z
                                               + barycentricinterpolation.z * vertex3.m_pos.z;
 
+                    //**UV interpolation
+                    glm::vec2 uv1 = vertex1.m_uv;
+                    glm::vec2 uv2 = vertex2.m_uv;
+                    glm::vec2 uv3 = vertex3.m_uv;
+
+                    glm::vec2 interpolatedUV = interpolateUV(uv1, uv2, uv3, barycentricinterpolation);
+
+                    glm::vec3 textureColor = GetImageColor(interpolatedUV, p.mp_texture);
+
+                    //
+
                     //use the color of the fragment with the smallest Z-coordinate
+
                     if (interpolatedDepth < zBuffer[zBufferIndex]){
                         zBuffer[zBufferIndex] = interpolatedDepth;
-                        result.setPixel(x, y, qRgb(colorinterpolation.r, colorinterpolation.g, colorinterpolation.b));
-                        //3D test
-//                        result.setPixel(x, y, qRgb(255, 255, 255));
+                        //2D
+//                        result.setPixel(x, y, qRgb(colorinterpolation.r, colorinterpolation.g, colorinterpolation.b));
+                        //3D
+                        result.setPixel(x, y, qRgb(textureColor.r, textureColor.g, textureColor.b));
 
                     }
 
@@ -265,9 +278,9 @@ glm::vec3 Rasterizer::BarycentricInterpolation3D(glm::vec4& v1, glm::vec4& v2, g
 
     float s = s1 + s2 + s3;
 
-    float s1s = s1/(s * v1.z);
-    float s2s = s2/(s * v2.z);
-    float s3s = s3/(s * v3.z);
+    float s1s = s1/(s * v1.w);
+    float s2s = s2/(s * v2.w);
+    float s3s = s3/(s * v3.w);
 
     //return barycentric influence
     return glm::vec3(s1s, s2s, s3s);
@@ -276,6 +289,18 @@ glm::vec3 Rasterizer::BarycentricInterpolation3D(glm::vec4& v1, glm::vec4& v2, g
 glm::vec2 Rasterizer::interpolateUV(glm::vec2& v1UV, glm::vec2& v2UV, glm::vec2& v3UV, glm::vec3& barycentricInfluence) {
     return barycentricInfluence.x * v1UV + barycentricInfluence.y * v2UV + barycentricInfluence.z * v3UV;
 }
+
+glm::vec3 Rasterizer::lambert(const Camera& camera, const glm::vec3& normal, const glm::vec3&light){
+    float ambientTerm = 0.3f;
+
+    //normalize camera's forward vector
+    glm::vec3 normalizedForward = glm::normalize(glm::vec3(camera.forward));
+
+    float lambertTerm = glm::clamp(glm::dot(normal, normalizedForward), 0.0f, 1.0f);
+
+    return ambientTerm + lambertTerm * light;
+}
+
 
 
 void Rasterizer::ClearScene() {
